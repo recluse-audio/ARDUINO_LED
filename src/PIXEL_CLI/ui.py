@@ -25,14 +25,14 @@ def draw_ui(
     ui_refresh_fps,
     selected_led_index,
     is_mono_mode,
-    active_channel_index,
+    active_color_index,
     pixel_array,
     global_brightness,
     keyboard_device_path,
 ):
     screen.clear()
     screen.addstr(0, 0, "LED Pixel UI (evdev input; single-pixel packets)")
-    mode_label = "MONO" if is_mono_mode else f"COLOR[{('RGB'[active_channel_index])}]"
+    mode_label = "MONO" if is_mono_mode else f"COLOR[{('RGB'[active_color_index])}]"
     header_text = (
         f"Port: {serial_port_name} | LEDs: {led_count} | FPS: {ui_refresh_fps} | "
         f"Brightness: {global_brightness} | Mode: {mode_label} | KBD: {os.path.basename(keyboard_device_path)}"
