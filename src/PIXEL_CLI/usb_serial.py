@@ -8,8 +8,8 @@ from __future__ import annotations
 import time
 import serial
 from serial.tools import list_ports
+from PIXEL_CLI.defaults import DEFAULT_BAUD_RATE
 
-DEFAULT_BAUD_RATE = 1_000_000
 
 
 def list_candidate_ports():

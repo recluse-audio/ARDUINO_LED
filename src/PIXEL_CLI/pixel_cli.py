@@ -31,6 +31,15 @@ from PIXEL_CLI.key_state import KeyState, auto_detect_keyboard_device_path
 from PIXEL_CLI.pixel_protocol import send_set_pixel, send_brightness, send_show
 from PIXEL_CLI.usb_serial import list_candidate_ports,auto_detect_port, open_serial_port, DEFAULT_BAUD_RATE
 from PIXEL_CLI.ui import draw_ui
+from PIXEL_CLI.defaults import (
+    DEFAULT_BAUD_RATE,
+    DEFAULT_NUM_LEDS,
+    DEFAULT_FPS,
+    DEFAULT_STEP,
+    FADE_TIME_SECONDS_DEFAULT,
+    IS_MONO_DEFAULT,
+    load_repo_overrides,
+)
 
 import argparse
 import time
@@ -94,6 +103,11 @@ def fill_led(serial_port, led_count, global_brightness, pixel_array, red, green,
     send_brightness(serial_port, global_brightness)
     send_show(serial_port)    
 
+def move_selection(pixel_array, delta_leds: int):
+    current_selected_led_index = pixel_array.get_selected_pixel()
+    new_selected_led_index = (current_selected_led_index + delta_leds) % DEFAULT_NUM_LEDS
+    pixel_array.set_selected_pixel(new_selected_led_index)
+
 # ---------- Main loop ----------
 def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adjustment_step, keyboard_device_path):
     curses.curs_set(0)
@@ -104,7 +118,7 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
     key_state = KeyState(keyboard_device_path)
 
     pixel_array = PixelArray(led_count)
-    selected_led_index = 0
+    selected_led_index = pixel_array.get_selected_pixel()
     selected_red, selected_green, selected_blue = 64, 64, 64     # default pixel color (editable)
     is_mono_mode = IS_MONO_DEFAULT
     active_channel_index = 0  # 0=R,1=G,2=B
@@ -133,11 +147,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
     movement_repeat_hz = 60.0
     movement_repeat_interval = 1.0 / movement_repeat_hz
     next_movement_time = time.time()
-
-    def move_selection(delta_leds: int):
-        nonlocal selected_led_index
-        selected_led_index = (selected_led_index + delta_leds) % led_count
-        pixel_array.set_selected_pixel(selected_led_index)
 
 
     # evdev keycode names
@@ -237,16 +246,16 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
 
             has_moved = False
             if KEY_LEFT in key_state.pressed_keys:
-                move_selection(-movement_step_multiplier)
+                move_selection(pixel_array, -movement_step_multiplier)
                 has_moved = True
             if KEY_RIGHT in key_state.pressed_keys:
-                move_selection(+movement_step_multiplier)
+                move_selection(pixel_array, +movement_step_multiplier)
                 has_moved = True
             if KEY_UP in key_state.pressed_keys:
-                move_selection(+5 * movement_step_multiplier)   # page-ish up
+                move_selection(pixel_array, +5 * movement_step_multiplier)   # page-ish up
                 has_moved = True
             if KEY_DOWN in key_state.pressed_keys:
-                move_selection(-9 * movement_step_multiplier)   # page-ish down
+                move_selection(pixel_array, -9 * movement_step_multiplier)   # page-ish down
                 has_moved = True
 
             if has_moved:

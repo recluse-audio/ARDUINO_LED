@@ -21,6 +21,9 @@ class PixelArray:
         self.apply_selected_color_to(self.selected_pixel_index)
         self.pixels[self.selected_pixel_index].set_selected(True)
 
+    def get_selected_pixel(self) -> int:
+        return self.selected_pixel_index
+
     def set_selected_color(self, r: int, g: int, b: int) -> None:
         if r > 255:
             r = 255
