@@ -1,0 +1,15 @@
+# Repo-local defaults for PIXEL_CLI.
+# If you set both of these, you can run `PIXEL_CLI` with no flags.
+
+# Example Linux defaults:
+port = "/dev/ttyACM0"
+kbd  = "/dev/input/by-id/usb-Raspberry_Pi_Ltd_Pi_500_Keyboard-event-kbd"
+
+# For macOS or Windows, change only the values above in your local clone as needed:
+# macOS example:
+# port = "/dev/tty.usbmodem1101"
+# kbd  = ""  # evdev not used on macOS; leave blank so CLI arg or detection can be used
+
+# Windows example:
+# port = "COM3"
+# kbd  = ""  # evdev path not applicable on Windows

@@ -14,13 +14,21 @@ Usage:
   pip install evdev pyserial
   ls -l /dev/input/by-id/*-event-kbd
   python3 pixel_cli.py --port /dev/ttyACM0 --kbd /dev/input/by-id/usb-XXX-event-kbd
+
+Repo-local defaults (no OS-specific paths outside the repo):
+  Put a file at:  <repo_root>/config/defaults.toml
+  Example:
+    port = "/dev/ttyACM0"
+    kbd  = "/dev/input/by-id/usb-Raspberry_Pi_Ltd_Pi_500_Keyboard-event-kbd"
+
+If you set those, you can just run:
+  PIXEL_CLI
 """
 
 # in src/PIXEL_CLI/pixel_cli.py
 from PIXEL_CLI.pixel_array import PixelArray
 from PIXEL_CLI.key_state import KeyState
 from PIXEL_CLI.pixel_protocol import send_set_pixel, send_brightness, send_show
-
 
 import argparse
 import time
@@ -35,6 +43,36 @@ import select
 import os
 import glob
 from dataclasses import dataclass
+from pathlib import Path
+
+# ---------- repo-local config loading ----------
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:
+    tomllib = None
+
+# src/PIXEL_CLI/pixel_cli.py -> parents[2] == repo root
+REPO_CFG = Path(__file__).resolve().parents[2] / "config" / "defaults.toml"
+
+
+def _read_toml(path: Path) -> dict:
+    if tomllib and path.is_file():
+        try:
+            return tomllib.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def load_repo_defaults():
+    """
+    Load defaults from repo-local config/defaults.toml.
+    Returns dict: {'port': str|None, 'kbd': str|None}
+    """
+    cfg = _read_toml(REPO_CFG)
+    port = (cfg.get("port") or "").strip()
+    kbd = (cfg.get("kbd") or "").strip()
+    return {"port": port or None, "kbd": kbd or None}
 
 
 #------------ magic numbers to match arduino --------------
@@ -42,9 +80,8 @@ DEFAULT_BAUD_RATE = 1_000_000
 _U64_MASK = (1 << 64) - 1
 
 # ------------ DEFAULTS ------------------
-FADE_TIME_SECONDS_DEFAULT = 1.0 # how long it will take to fade to darkness
+FADE_TIME_SECONDS_DEFAULT = 1.0  # how long it will take to fade to darkness
 IS_MONO_DEFAULT = False
-    
 
 
 # ---------- Serial helpers ----------
@@ -58,9 +95,11 @@ def list_candidate_ports():
             candidate_devices.append(port_info.device)
     return candidate_devices, all_ports
 
+
 def auto_detect_port():
     candidate_devices, _ = list_candidate_ports()
     return candidate_devices[0] if candidate_devices else None
+
 
 def open_serial_port(port_path, baud_rate=DEFAULT_BAUD_RATE, timeout=0.0):
     serial_port = serial.Serial(port_path, baudrate=baud_rate, timeout=timeout)
@@ -79,6 +118,7 @@ def auto_detect_keyboard_device_path():
     event_device_paths = glob.glob("/dev/input/event*")
     return event_device_paths[0] if event_device_paths else None
 
+
 # ---------- UI help ----------
 HELP_LINES = [
     "Keys (evdev):",
@@ -93,6 +133,7 @@ HELP_LINES = [
     "  SPACE      : SHOW (latch)",
     "  q          : quit (clears + SHOWs)",
 ]
+
 
 def draw_ui(screen, *, serial_port_name, led_count, ui_refresh_fps, selected_led_index,
             is_mono_mode, active_channel_index, pixel_array, global_brightness, keyboard_device_path):
@@ -125,6 +166,7 @@ def draw_ui(screen, *, serial_port_name, led_count, ui_refresh_fps, selected_led
         help_row_index += 1
 
     screen.refresh()
+
 
 # ---------- Main loop ----------
 def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adjustment_step, keyboard_device_path):
@@ -176,7 +218,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
         selected_led_index = (selected_led_index + delta_leds) % led_count
         pixel_array.set_selected_pixel(selected_led_index)
 
-
     def set_and_send_pixel(led_index: int, red: int, green: int, blue: int):
         pixel_array.set_rgb8(led_index, red, green, blue)
         r8, g8, b8 = pixel_array.get_rgb8(led_index)
@@ -196,7 +237,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
     KEY_COMMA, KEY_DOT = 'KEY_COMMA', 'KEY_DOT'
     KEY_EQUAL, KEY_MINUS = 'KEY_EQUAL', 'KEY_MINUS'
     KEY_KPPLUS, KEY_KPMINUS = 'KEY_KPPLUS', 'KEY_KPMINUS'
-
 
     last_selected_pixel = 0
 
@@ -263,7 +303,7 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
             delta_value = adjustment_step if is_increase_pressed else -adjustment_step
             if is_mono_mode:
                 new_value = max(0, min(255, max(selected_red, selected_green, selected_blue) + delta_value))
-                fv = selected_green = selected_blue = new_value
+                selected_red = selected_green = selected_blue = new_value
             else:
                 if active_channel_index == 0:
                     selected_red = max(0, min(255, selected_red + delta_value))
@@ -272,7 +312,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
                 else:
                     selected_blue = max(0, min(255, selected_blue + delta_value))
             pixel_array.set_selected_color(selected_red, selected_green, selected_blue)
-
 
         # Continuous movement while held (with modifiers)
         if current_time >= next_movement_time:
@@ -306,7 +345,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
             else:
                 next_movement_time = current_time + 0.005  # idle check interval
 
-
         # Redraw UI
         if current_time >= next_redraw_time:
 
@@ -329,7 +367,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
             if any_dirty:
                 send_show(serial_port)
 
-
             draw_ui(
                 screen,
                 serial_port_name=serial_port_name,
@@ -346,19 +383,24 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
 
         time.sleep(0.001)
 
+
 def main():
+    # Load repo-local defaults first
+    defaults = load_repo_defaults()
+
     argument_parser = argparse.ArgumentParser(
         description="Keyboard UI (evdev) for single-pixel NeoPixel protocol (SET_PIXEL + SHOW + BRIGHTNESS)."
     )
-    argument_parser.add_argument("--port", help="Serial port (e.g., /dev/ttyACM0). Defaults to auto-detect.")
+    argument_parser.add_argument("--port", help="Serial port (e.g., /dev/ttyACM0). Defaults to repo config or auto-detect.")
     argument_parser.add_argument("--baud", type=int, default=DEFAULT_BAUD_RATE, help="Baud rate (default 1000000).")
     argument_parser.add_argument("--num-leds", type=int, default=288, help="Number of LEDs.")
     argument_parser.add_argument("--fps", type=int, default=50, help="UI redraw rate in frames per second.")
     argument_parser.add_argument("--step", type=int, default=8, help="Value step for +/- edits and brightness.")
-    argument_parser.add_argument("--kbd", help="Keyboard event device path (e.g., /dev/input/by-id/usb-XXX-event-kbd). Autodetect if omitted.")
+    argument_parser.add_argument("--kbd", help="Keyboard event device path (e.g., /dev/input/by-id/usb-XXX-event-kbd). Defaults to repo config or auto-detect.")
     args = argument_parser.parse_args()
 
-    serial_port_name = args.port or auto_detect_port()
+    # Resolve serial port + keyboard path using: CLI arg -> repo config -> auto-detect
+    serial_port_name = args.port or defaults.get("port") or auto_detect_port()
     if not serial_port_name:
         _, detected_ports_all = list_candidate_ports()
         print("No Arduino serial port auto-detected. Try --port /dev/ttyACM0", file=sys.stderr)
@@ -366,7 +408,7 @@ def main():
             print("Detected ports:", ", ".join(detected_ports_all), file=sys.stderr)
         sys.exit(1)
 
-    keyboard_device_path = args.kbd or auto_detect_keyboard_device_path()
+    keyboard_device_path = args.kbd or defaults.get("kbd") or auto_detect_keyboard_device_path()
     if not keyboard_device_path or not os.path.exists(keyboard_device_path):
         print("No keyboard device found. Provide --kbd /dev/input/by-id/...-event-kbd", file=sys.stderr)
         sys.exit(1)
@@ -401,6 +443,7 @@ def main():
             serial_port.close()
         except Exception:
             pass
+
 
 if __name__ == "__main__":
     main()
