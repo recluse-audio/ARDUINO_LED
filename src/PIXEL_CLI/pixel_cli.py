@@ -30,6 +30,7 @@ from PIXEL_CLI.pixel_array import PixelArray
 from PIXEL_CLI.key_state import KeyState, auto_detect_keyboard_device_path
 from PIXEL_CLI.pixel_protocol import send_set_pixel, send_brightness, send_show
 from PIXEL_CLI.usb_serial import list_candidate_ports,auto_detect_port, open_serial_port, DEFAULT_BAUD_RATE
+from PIXEL_CLI.ui import draw_ui
 
 import argparse
 import time
@@ -79,58 +80,19 @@ IS_MONO_DEFAULT = False
 
 
 
+def reset_led(serial_port, led_count, global_brightness, pixel_array):
+    pixel_array.clear()
+    for led_index in range(led_count):
+        send_set_pixel(serial_port, led_index, 0, 0, 0)
+    send_brightness(serial_port, global_brightness)
+    send_show(serial_port)
 
-
-
-
-# ---------- UI help ----------
-HELP_LINES = [
-    "Keys (evdev):",
-    "  Arrows     : move (hold for repeat)",
-    "  Shift+Arrows / Ctrl+Arrows : faster / far jump",
-    "  = / -      : adjust current pixel (mono or selected channel)",
-    "  m          : toggle mono vs color mode",
-    "  [ / ]      : select channel in color mode (R,G,B)",
-    "  c          : clear all (black)",
-    "  f          : fill all with current pixel color",
-    "  , / .      : global brightness down / up",
-    "  SPACE      : SHOW (latch)",
-    "  q          : quit (clears + SHOWs)",
-]
-
-
-def draw_ui(screen, *, serial_port_name, led_count, ui_refresh_fps, selected_led_index,
-            is_mono_mode, active_channel_index, pixel_array, global_brightness, keyboard_device_path):
-    screen.clear()
-    screen.addstr(0, 0, "LED Pixel UI (evdev input; single-pixel packets)")
-    mode_label = "MONO" if is_mono_mode else f"COLOR[{('RGB'[active_channel_index])}]"
-    header_text = (
-        f"Port: {serial_port_name} | LEDs: {led_count} | FPS: {ui_refresh_fps} | "
-        f"Brightness: {global_brightness} | Mode: {mode_label} | KBD: {os.path.basename(keyboard_device_path)}"
-    )
-    screen.addstr(1, 0, header_text[:max(1, curses.COLS - 1)])
-    screen.addstr(2, 0, f"Index: {selected_led_index:>4} | Use arrows, Shift/Ctrl for speed, ',' '.' for brightness")
-
-    red_value, green_value, blue_value = pixel_array.get_rgb8(selected_led_index)
-    screen.addstr(4, 0, f"Pixel[{selected_led_index}] RGB=({red_value:3},{green_value:3},{blue_value:3})")
-
-    ruler_width = min(led_count, curses.COLS - 2)
-    if ruler_width > 0:
-        screen.addstr(6, 0, "Index ruler:")
-        ruler_line = ["·"] * ruler_width
-        marker_position = int((selected_led_index / max(1, led_count - 1)) * (ruler_width - 1))
-        ruler_line[marker_position] = "|"
-        screen.addstr(7, 0, "".join(ruler_line))
-
-    help_row_index = 9
-    for help_line in HELP_LINES:
-        if help_row_index >= curses.LINES - 1:
-            break
-        screen.addstr(help_row_index, 0, help_line)
-        help_row_index += 1
-
-    screen.refresh()
-
+def fill_led(serial_port, led_count, global_brightness, pixel_array, red, green, blue):
+    pixel_array.clear()
+    for led_index in range(led_count):
+        send_set_pixel(serial_port, led_index, red, green, blue)
+    send_brightness(serial_port, global_brightness)
+    send_show(serial_port)    
 
 # ---------- Main loop ----------
 def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adjustment_step, keyboard_device_path):
@@ -143,18 +105,13 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
 
     pixel_array = PixelArray(led_count)
     selected_led_index = 0
-    # default pixel color (editable)
-    selected_red, selected_green, selected_blue = 64, 64, 64
+    selected_red, selected_green, selected_blue = 64, 64, 64     # default pixel color (editable)
     is_mono_mode = IS_MONO_DEFAULT
     active_channel_index = 0  # 0=R,1=G,2=B
     global_brightness = 255
 
     # Initialize device (clear all, set brightness, show)
-    pixel_array.clear()
-    for led_index in range(led_count):
-        send_set_pixel(serial_port, led_index, 0, 0, 0)
-    send_brightness(serial_port, global_brightness)
-    send_show(serial_port)
+    reset_led(serial_port, led_count, global_brightness, pixel_array)
 
     draw_ui(
         screen,
@@ -182,15 +139,6 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
         selected_led_index = (selected_led_index + delta_leds) % led_count
         pixel_array.set_selected_pixel(selected_led_index)
 
-    def set_and_send_pixel(led_index: int, red: int, green: int, blue: int):
-        pixel_array.set_rgb8(led_index, red, green, blue)
-        r8, g8, b8 = pixel_array.get_rgb8(led_index)
-        send_set_pixel(serial_port, led_index, r8, g8, b8)
-        send_show(serial_port)
-
-    # Convenience for edge-triggered checks
-    def key_down_edge(key_name: str) -> bool:
-        return key_state.down_edge(key_name)
 
     # evdev keycode names
     KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN = 'KEY_LEFT', 'KEY_RIGHT', 'KEY_UP', 'KEY_DOWN'
@@ -216,7 +164,7 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
             send_show(serial_port)
             return
 
-        if key_down_edge(KEY_Q):
+        if key_state.down_edge(KEY_Q):
             pixel_array.clear()
             for led_index in range(led_count):
                 send_set_pixel(serial_port, led_index, 0, 0, 0)
@@ -224,20 +172,19 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
             return
 
         # Mode toggles
-        if key_down_edge(KEY_M):
+        if key_state.down_edge(KEY_M):
             is_mono_mode = not is_mono_mode
-        if key_down_edge(KEY_LEFTBRACE):
+        if key_state.down_edge(KEY_LEFTBRACE):
             active_channel_index = (active_channel_index - 1) % 3
-        if key_down_edge(KEY_RIGHTBRACE):
+        if key_state.down_edge(KEY_RIGHTBRACE):
             active_channel_index = (active_channel_index + 1) % 3
 
         # Fill / Clear
-        if key_down_edge(KEY_F):
+        if key_state.down_edge(KEY_F):
             for led_index in range(led_count):
-                set_and_send_pixel(led_index, selected_red, selected_green, selected_blue)
-            send_show(serial_port)
+                fill_led(serial_port, led_count, global_brightness, pixel_array, red, green, blue )
 
-        if key_down_edge(KEY_C):
+        if key_state.down_edge(KEY_C):
             pixel_array.clear()
             for led_index in range(led_count):
                 send_set_pixel(serial_port, led_index, 0, 0, 0)
@@ -254,7 +201,7 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
             send_show(serial_port)
 
         # Space to SHOW
-        if key_down_edge(KEY_SPACE):
+        if key_state.down_edge(KEY_SPACE):
             send_show(serial_port)
 
         ##############################
