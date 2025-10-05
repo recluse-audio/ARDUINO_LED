@@ -83,10 +83,15 @@ def load_repo_defaults():
 #------------ magic numbers to match arduino --------------
 _U64_MASK = (1 << 64) - 1
 
-# ------------ DEFAULTS ------------------
-FADE_TIME_SECONDS_DEFAULT = 1.0  # how long it will take to fade to darkness
-IS_MONO_DEFAULT = False
-
+#--------------- evdev keycode names ----------------------
+KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN = 'KEY_LEFT', 'KEY_RIGHT', 'KEY_UP', 'KEY_DOWN'
+KEY_LEFTSHIFT, KEY_RIGHTSHIFT = 'KEY_LEFTSHIFT', 'KEY_RIGHTSHIFT'
+KEY_LEFTCTRL, KEY_RIGHTCTRL   = 'KEY_LEFTCTRL', 'KEY_RIGHTCTRL'
+KEY_M, KEY_LEFTBRACE, KEY_RIGHTBRACE = 'KEY_M', 'KEY_LEFTBRACE', 'KEY_RIGHTBRACE'
+KEY_C, KEY_F, KEY_SPACE, KEY_Q = 'KEY_C', 'KEY_F', 'KEY_SPACE', 'KEY_Q'
+KEY_COMMA, KEY_DOT = 'KEY_COMMA', 'KEY_DOT'
+KEY_EQUAL, KEY_MINUS = 'KEY_EQUAL', 'KEY_MINUS'
+KEY_KPPLUS, KEY_KPMINUS = 'KEY_KPPLUS', 'KEY_KPMINUS'
 
 
 def reset_led(serial_port, led_count, global_brightness, pixel_array):
@@ -114,8 +119,7 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
     screen.nodelay(True)
     screen.keypad(True)  # still useful for resize handling
 
-    # evdev keyboard
-    key_state = KeyState(keyboard_device_path)
+
 
     pixel_array = PixelArray(led_count)
     selected_led_index = pixel_array.get_selected_pixel()
@@ -148,18 +152,11 @@ def run_ui(screen, serial_port, serial_port_name, led_count, ui_refresh_fps, adj
     movement_repeat_interval = 1.0 / movement_repeat_hz
     next_movement_time = time.time()
 
+    # evdev keyboard
+    key_state = KeyState(keyboard_device_path)
 
-    # evdev keycode names
-    KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN = 'KEY_LEFT', 'KEY_RIGHT', 'KEY_UP', 'KEY_DOWN'
-    KEY_LEFTSHIFT, KEY_RIGHTSHIFT = 'KEY_LEFTSHIFT', 'KEY_RIGHTSHIFT'
-    KEY_LEFTCTRL, KEY_RIGHTCTRL   = 'KEY_LEFTCTRL', 'KEY_RIGHTCTRL'
-    KEY_M, KEY_LEFTBRACE, KEY_RIGHTBRACE = 'KEY_M', 'KEY_LEFTBRACE', 'KEY_RIGHTBRACE'
-    KEY_C, KEY_F, KEY_SPACE, KEY_Q = 'KEY_C', 'KEY_F', 'KEY_SPACE', 'KEY_Q'
-    KEY_COMMA, KEY_DOT = 'KEY_COMMA', 'KEY_DOT'
-    KEY_EQUAL, KEY_MINUS = 'KEY_EQUAL', 'KEY_MINUS'
-    KEY_KPPLUS, KEY_KPMINUS = 'KEY_KPPLUS', 'KEY_KPMINUS'
 
-    last_selected_pixel = 0
+
 
     while True:
         # Poll keyboard
