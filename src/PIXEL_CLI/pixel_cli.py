@@ -29,6 +29,7 @@ If you set those, you can just run:
 from PIXEL_CLI.pixel_array import PixelArray
 from PIXEL_CLI.key_state import KeyState
 from PIXEL_CLI.pixel_protocol import send_set_pixel, send_brightness, send_show
+from PIXEL_CLI.usb_serial import list_candidate_ports,auto_detect_port, open_serial_port, DEFAULT_BAUD_RATE
 
 import argparse
 import time
@@ -76,7 +77,6 @@ def load_repo_defaults():
 
 
 #------------ magic numbers to match arduino --------------
-DEFAULT_BAUD_RATE = 1_000_000
 _U64_MASK = (1 << 64) - 1
 
 # ------------ DEFAULTS ------------------
@@ -84,28 +84,6 @@ FADE_TIME_SECONDS_DEFAULT = 1.0  # how long it will take to fade to darkness
 IS_MONO_DEFAULT = False
 
 
-# ---------- Serial helpers ----------
-def list_candidate_ports():
-    candidate_devices, all_ports = [], []
-    for port_info in list_ports.comports():
-        all_ports.append(port_info.device)
-        device_name = (port_info.device or "").lower()
-        description = (port_info.description or "").lower()
-        if "ttyacm" in device_name or "arduino" in description or "wch" in description or "ch340" in description or "usb serial" in description:
-            candidate_devices.append(port_info.device)
-    return candidate_devices, all_ports
-
-
-def auto_detect_port():
-    candidate_devices, _ = list_candidate_ports()
-    return candidate_devices[0] if candidate_devices else None
-
-
-def open_serial_port(port_path, baud_rate=DEFAULT_BAUD_RATE, timeout=0.0):
-    serial_port = serial.Serial(port_path, baudrate=baud_rate, timeout=timeout)
-    time.sleep(2.0)  # allow board to reset
-    serial_port.reset_input_buffer()
-    return serial_port
 
 
 # ---------- evdev input ----------
