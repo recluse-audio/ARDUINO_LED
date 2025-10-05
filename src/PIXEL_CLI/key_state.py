@@ -1,6 +1,7 @@
 # key_state.py
 from evdev import InputDevice, categorize, ecodes
 import select
+import glob
 
 class KeyState:
     """
@@ -71,3 +72,17 @@ class KeyState:
     def down_edge(self, *keycode_names):
         """Edge-triggered: True if ALL keys went down this tick (useful for toggles)."""
         return all(key_name in self.keys_pressed_this_tick for key_name in keycode_names)
+
+# ---------- evdev input auto-detect ----------
+def auto_detect_keyboard_device_path():
+    """
+    Try to find a keyboard event device on Linux.
+    Prefers stable /dev/input/by-id/*-event-kbd paths.
+    Returns: str path or None.
+    """
+    by_id_keyboard_paths = glob.glob("/dev/input/by-id/*-event-kbd")
+    if by_id_keyboard_paths:
+        return by_id_keyboard_paths[0]
+    # Fallback: first event device that reports EV_KEY (best-effort)
+    event_device_paths = glob.glob("/dev/input/event*")
+    return event_device_paths[0] if event_device_paths else None

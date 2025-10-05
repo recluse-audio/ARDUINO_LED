@@ -27,7 +27,7 @@ If you set those, you can just run:
 
 # in src/PIXEL_CLI/pixel_cli.py
 from PIXEL_CLI.pixel_array import PixelArray
-from PIXEL_CLI.key_state import KeyState
+from PIXEL_CLI.key_state import KeyState, auto_detect_keyboard_device_path
 from PIXEL_CLI.pixel_protocol import send_set_pixel, send_brightness, send_show
 from PIXEL_CLI.usb_serial import list_candidate_ports,auto_detect_port, open_serial_port, DEFAULT_BAUD_RATE
 
@@ -35,16 +35,10 @@ import argparse
 import time
 import sys
 import curses
-import serial
-from serial.tools import list_ports
-
-# ---- evdev for real key up/down ----
-from evdev import InputDevice, categorize, ecodes
-import select
-import os
-import glob
-from dataclasses import dataclass
 from pathlib import Path
+import os
+
+
 
 # ---------- repo-local config loading ----------
 try:
@@ -86,15 +80,7 @@ IS_MONO_DEFAULT = False
 
 
 
-# ---------- evdev input ----------
-def auto_detect_keyboard_device_path():
-    # Prefer stable by-id paths that end with -event-kbd
-    by_id_keyboard_paths = glob.glob("/dev/input/by-id/*-event-kbd")
-    if by_id_keyboard_paths:
-        return by_id_keyboard_paths[0]
-    # Fallback: first event device that reports EV_KEY (not ideal)
-    event_device_paths = glob.glob("/dev/input/event*")
-    return event_device_paths[0] if event_device_paths else None
+
 
 
 # ---------- UI help ----------
