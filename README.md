@@ -1,0 +1,1 @@
+Control LED strip with Arduino and RaspberryPi500 running python
