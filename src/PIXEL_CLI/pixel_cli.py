@@ -16,9 +16,11 @@ Usage:
   python3 pixel_cli.py --port /dev/ttyACM0 --kbd /dev/input/by-id/usb-XXX-event-kbd
 """
 
-from pixel_array import PixelArray
-from key_state import KeyState
-from pixel_protocol import (send_set_pixel,send_brightness,send_show,)
+# in src/PIXEL_CLI/pixel_cli.py
+from PIXEL_CLI.pixel_array import PixelArray
+from PIXEL_CLI.key_state import KeyState
+from PIXEL_CLI.pixel_protocol import send_set_pixel, send_brightness, send_show
+
 
 import argparse
 import time

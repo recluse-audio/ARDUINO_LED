@@ -3,20 +3,26 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pixel-cli-ui"
+name = "PIXEL_CLI"
 version = "0.1.0"
 description = "Evdev-driven NeoPixel single-pixel UI over serial"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
-authors = [{ name = "Your Name" }]
 dependencies = [
   "evdev>=1.7,<2",
   "pyserial>=3.5,<4",
 ]
 
 [project.scripts]
-pixel-cli = "pixel_cli:main"
+PIXEL_CLI = "PIXEL_CLI.pixel_cli:main"  # console command name
+
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["PIXEL_CLI*"]
 
 [tool.ruff]
 line-length = 100

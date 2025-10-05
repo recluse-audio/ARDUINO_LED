@@ -1,5 +1,5 @@
 # pixel_array.py
-from pixel import Pixel
+from PIXEL_CLI.pixel import Pixel
 
 # ---------- PixelArray ----------
 class PixelArray:
