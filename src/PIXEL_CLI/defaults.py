@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 
 # ---- Hard defaults (single source of truth) ----
 DEFAULT_BAUD_RATE = 1_000_000
-DEFAULT_NUM_LEDS = 288
+DEFAULT_NUM_LEDS = 1000
 DEFAULT_FPS = 50
 DEFAULT_STEP = 8
 DEFAULT_GLOBAL_BRIGHTNESS = 64

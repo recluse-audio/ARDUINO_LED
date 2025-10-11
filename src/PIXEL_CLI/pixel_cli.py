@@ -138,11 +138,11 @@ def poll_keyboard(serial_port, key_state: KeyState, pixel_array: PixelArray, cur
     # Quit
     if key_state.is_pressed(KEY_LEFTCTRL) and key_state.is_pressed(KEY_C):
         reset_led(serial_port, pixel_array)
-        return
+        return True
 
     if key_state.down_edge(KEY_Q):
         reset_led(serial_port, pixel_array)
-        return
+        return True
 
     # Mode toggles
     if key_state.down_edge(KEY_M):
@@ -238,6 +238,9 @@ def poll_keyboard(serial_port, key_state: KeyState, pixel_array: PixelArray, cur
             ui_state.next_movement_time = current_time + max(0.002, movement_interval)
         else:
             ui_state.next_movement_time = current_time + 0.005  # idle check interval
+
+
+    return False
 #================================================
 
 
@@ -346,7 +349,7 @@ def main():
     )
     argument_parser.add_argument("--port", help="Serial port (e.g., /dev/ttyACM0). Defaults to repo config or auto-detect.")
     argument_parser.add_argument("--baud", type=int, default=DEFAULT_BAUD_RATE, help="Baud rate (default 1000000).")
-    argument_parser.add_argument("--num-leds", type=int, default=288, help="Number of LEDs.")
+    argument_parser.add_argument("--num-leds", type=int, default=DEFAULT_NUM_LEDS, help="Number of LEDs.")
     argument_parser.add_argument("--fps", type=int, default=50, help="UI redraw rate in frames per second.")
     argument_parser.add_argument("--step", type=int, default=8, help="Value step for +/- edits and brightness.")
     argument_parser.add_argument("--kbd", help="Keyboard event device path (e.g., /dev/input/by-id/usb-XXX-event-kbd). Defaults to repo config or auto-detect.")
